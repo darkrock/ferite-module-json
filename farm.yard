@@ -1,0 +1,30 @@
+<?xml version="1.0" ?>
+<yard name="json">
+
+    <module id="jsonparser">
+        <!-- C flags -->
+        <property type="C">
+			<program-output program="ferite-config" arguments="--cflags" />
+		</property>
+        
+        <!-- LD flags -->
+        <add-property type="LD">
+			<program-output program="ferite-config" arguments="--libs" />
+		</add-property>
+
+        <property type="prefix" value="$(FeriteModuleNativeDir)" />
+        
+        <list type="source">
+            <file name="jsonparser.fec" />
+			<file name="utility.c" />
+			<file name="utility.h" />
+        </list>
+    </module>
+        
+    <phase id="install" depends="build">
+        <perform action="install" target="jsonparser" />
+        <copy file="jsonparser.fec" target="$(FeriteModuleSourceDir)" />
+        <copy file="$(ProductDir)/jsonparser.xml" target="$(FeriteModuleDescriptionDir)" />
+    </phase>
+    
+</yard>

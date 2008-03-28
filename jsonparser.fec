@@ -1,0 +1,58 @@
+uses "jsonparser.lib";
+
+module-header {
+	#include "utility.h"
+}
+
+class modifies Obj {
+	function toJSON() 
+		return '{ }';
+}
+
+namespace JSON {
+	native function escape( string value ) {
+		FeriteString *s = Ferite_JSON_EscapeString( script, value );
+		FeriteVariable *v = ferite_create_string_variable( script, "string", s, FE_STATIC );
+		ferite_str_destroy( script, s );
+		FE_RETURN_VAR(v);
+	}
+	native function parse( string value ) {
+		FeriteJSONParser *parser = fmalloc( sizeof(FeriteJSONParser) );
+		FeriteVariable *result = NULL;
+		
+		parser->data = fstrdup(value->data);
+		parser->size = value->length;
+		parser->pos = 0;
+		parser->depth = 0;
+		
+		result = Ferite_JSON_Parse_Value( script, parser );
+		
+		ffree( parser->data );
+		ffree( parser );
+		
+		if( result ) 
+			FE_RETURN_VAR(result);
+			
+		FE_RETURN_VOID;
+	}
+	
+	function valueToJSON( boolean value )
+		return (value ? "true" : "false");
+	function valueToJSON( number value )
+		return "$value";
+	function valueToJSON( array value ) {
+		array values;
+		value.each() using ( v ) {
+			values[] = .valueToJSON(v);
+		};
+		return "[ " + values.join(", ") + " ]";
+	}
+	function valueToJSON( string s ) {
+		return '"' + .escape(s) + '"';
+	}
+	function valueToJSON( object value ) {
+		if( value )
+			return value.toJSON();
+		return "null";
+	}
+}
