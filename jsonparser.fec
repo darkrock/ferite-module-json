@@ -26,13 +26,15 @@ namespace JSON {
 		parser->depth = 0;
 		
 		result = Ferite_JSON_Parse_Value( script, parser );
+		if( result == NULL )
+			ferite_error( script, 0, "Parse error in stream at character %d: %s", parser->pos, parser->data );
 		
 		ffree( parser->data );
 		ffree( parser );
 		
 		if( result ) 
 			FE_RETURN_VAR(result);
-			
+		
 		FE_RETURN_VOID;
 	}
 	
