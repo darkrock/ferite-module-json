@@ -1,4 +1,4 @@
-#include "jsonparser_header.h"
+#include "JSON_header.h"
 
 FeriteString *Ferite_JSON_EscapeString( FeriteScript *script, FeriteString *data ) {
 	size_t length = data->length, i = 0;

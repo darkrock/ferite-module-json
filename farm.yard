@@ -1,7 +1,7 @@
 <?xml version="1.0" ?>
 <yard name="json">
 
-    <module id="jsonparser">
+    <module id="JSON">
         <!-- C flags -->
         <property type="C">
 			<program-output program="ferite-config" arguments="--cflags" />
@@ -15,16 +15,17 @@
         <property type="prefix" value="$(FeriteModuleNativeDir)" />
         
         <list type="source">
-            <file name="jsonparser.fec" />
+			<file name="JSON.fec" />
 			<file name="utility.c" />
 			<file name="utility.h" />
         </list>
     </module>
         
     <phase id="install" depends="build">
-        <perform action="install" target="jsonparser" />
-        <copy file="jsonparser.fec" target="$(FeriteModuleSourceDir)" />
-        <copy file="$(ProductDir)/jsonparser.xml" target="$(FeriteModuleDescriptionDir)" />
+        <perform action="install" target="JSON" />
+		<copy file="JSON.fec" target="$(FeriteModuleSourceDir)" />
+        <copy file="$(ProductDir)/JSON.xml" target="$(FeriteModuleDescriptionDir)" />
+        <execute program="feritedoc" arguments="--regenerate" />
     </phase>
     
 </yard>

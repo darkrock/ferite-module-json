@@ -1,0 +1,205 @@
+uses "console";
+uses "network";
+uses "regexp";
+uses "JSON.lib";
+
+module-header {
+	#include "utility.h"
+}
+
+class modifies Obj {
+	function toJSON() 
+		return '{ }';
+}
+
+/**
+ * @namespace JSON
+ * @brief A set of services that provide rapid JSON parsing and RPC functions
+ */
+namespace JSON {
+
+	/**
+	 * @function escape
+	 * @declaration native function escape( string value )
+	 * @brief Taken a given string in ferite and escape it to the correct standard required by JSON
+	 * @param string value The string value to escape
+	 * @return A JSON escaped version of value
+	 */
+	native function escape( string value ) {
+		FeriteString *s = Ferite_JSON_EscapeString( script, value );
+		FeriteVariable *v = ferite_create_string_variable( script, "string", s, FE_STATIC );
+		ferite_str_destroy( script, s );
+		FE_RETURN_VAR(v);
+	}
+	/**
+	 * @function parse
+	 * @declaration native function parse( string value )
+	 * @brief Parse a given hunk of JSON into ferite
+	 * @description Objects will be translated into keyed arrays. Other types will be translated as expected.
+	 * @param string value The JSON code to parse
+	 * @return The ferite representation of the value.
+	 */
+	native function parse( string value ) {
+		FeriteJSONParser *parser = fmalloc( sizeof(FeriteJSONParser) );
+		FeriteVariable *result = NULL;
+		
+		parser->data = fstrdup(value->data);
+		parser->size = value->length;
+		parser->pos = 0;
+		parser->depth = 0;
+		
+		result = Ferite_JSON_Parse_Value( script, parser );
+		if( result == NULL )
+			ferite_error( script, 0, "Parse error in stream at character %d: %s", parser->pos, parser->data );
+		
+		ffree( parser->data );
+		ffree( parser );
+		
+		if( result ) 
+			FE_RETURN_VAR(result);
+		
+		FE_RETURN_VOID;
+	}
+	/**
+	 * @function valueToJSON
+	 * @declaration function valueToJSON( vold value )
+	 * @brief Convert a ferite local type into the serialized JSON representation
+	 * @param void value The ferite value to serialize. Please note that objects will have the toJSON function called on them.
+	 * @return A serialized JSON string.
+	 */
+	function valueToJSON( boolean value )
+		return (value ? "true" : "false");
+	function valueToJSON( number value )
+		return "$value";
+	function valueToJSON( array value ) {
+		array values;
+		value.each() using ( v ) {
+			values[] = .valueToJSON(v);
+		};
+		return "[ " + values.join(", ") + " ]";
+	}
+	function valueToJSON( string s ) {
+		return '"' + .escape(s) + '"';
+	}
+	function valueToJSON( object value ) {
+		if( value )
+			return value.toJSON();
+		return "null";
+	}
+	
+	/**
+	 * @namespace RPC
+	 * @brief     This namespace provides a set of functions for use in invoking a JSON-RPC session.
+	 */
+	namespace RPC {
+		string userAgent = 'ferite-json-rpc-library';
+
+		function request( string host, string url, string content ) {
+			array output;
+			output[] = "POST $url HTTP/1.1";
+			output[] = "User-Agent: ${JSON.RPC.userAgent}";
+			output[] = "Host: $host";
+			output[] = "Connection: Keep-Alive";
+			output[] = "Content-Type: application/json";
+			output[] = "Content-Length: ${content.length()}";
+			output[] = "Accept: application/json";
+			output[] = "";
+			output[] = content;
+			return output.join("\r\n");
+		}
+
+		function readResponse( object o ) {
+			array headers = [];
+			string content = '';
+			boolean keepReading = true;
+
+			while( keepReading ) {
+				string line = o.readln();
+				object match = null;
+
+				line = line.trim("\r\n");
+				if( line and (match = Regexp.match("HTTP/1\.[10] ([0-9]+) ([A-Za-z ]+)", line)) ) {
+					headers['Response-Code'] = match.capture(0).toNumber();
+					headers['Response-Name'] = match.capture(1);
+				}
+				else if( line and (match = Regexp.match( "([^:]+): (.*)", line )) ) {
+					headers[match.capture(0)] = match.capture(1);
+				}
+				else if( not line ) {
+					if( headers.keyExists('Content-Length') )
+						content = o.read( headers['Content-Length'].toNumber() ).trim("\r\n");
+					headers['Content'] = content;
+					keepReading = false;
+				}
+			}
+			return headers;
+		}
+		
+		object connection;		
+		function reconnect( string host, number port ) {
+			.connection = Network.TCP.connect(host, port, Network.AF_IPV4);
+		}
+		/**
+		 * @function sendRequest
+		 * @declaration function sendRequest( string host, number port, string url, string content )
+		 * @brief Send a HTTP request to a given host:port, url and content
+		 * @param string host The host to connect to
+		 * @param number port The port to connect to
+		 * @param string url The URL part to hand the request to
+		 * @param string content The POST content to send
+		 * @return An associated array of values representing the response. The keys will be the normal http headers, added with 'Content', 'Response-Code' and 'Response-Name'
+		 */
+		function sendRequest( string host, number port, string url, string content ) {
+			if( Sys.env.read("DEBUG_JSON") )
+				Console.println("$content");
+			if( not .connection )
+				.reconnect( host, port );
+			if( .connection ) {
+				.connection.write( .request(host, url, content) );
+				.connection.flush();
+				return .readResponse(.connection);
+			} else {
+				raise new Error("Unable to connection JSON host $host:$port$url");
+			}
+		}
+
+		string host;
+		number port;
+		string url;
+
+		/**
+		 * @function setDefaults
+		 * @declaration function setDefaults( string host, number port, string url )
+		 * @brief Set the default host/port/url to send JSON-RPC requests to
+		 * @param string host The host - do not provide http://
+		 * @param number port The port to use
+		 * @param string url The path component of the url
+		 */
+		function setDefaults( string host, number port, string url ) {
+			.host = host;
+			.port = port;
+			.url = url;
+		}
+		/**
+		 * @function invoke
+		 * @declaration function invoke( string f, array parameters )
+		 * @brief Invoke a function using the defaults set in setDefaults
+		 * @param string f The function to invoke
+		 * @param array parameters A keyed array of values.
+		 * @return The return from the function call (the same as the return value for sendRequest)
+		 */
+		function invoke( string f, array parameters ) {
+			array code = [];
+			array params = [];
+			parameters.map() using ( key, value ) {
+				params[] = "\"$key\" : ${JSON.valueToJSON(value)}"; 
+			};
+			code[] = '"version" : "1.2"';
+			code[] = '"method" : "' + f + '"';
+			code[] = '"params" : { ' + params.join(', ') + ' }';
+			return .sendRequest( .host, .port, .url, '{' + code.join(", ") + '}' );
+		}
+	}
+	/** @end */
+}
+/** @end */
