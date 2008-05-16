@@ -12,13 +12,17 @@ class modifies Obj {
 		return '{ }';
 }
 
+
 /**
  * @namespace JSON
  * @brief A set of services that provide rapid JSON parsing and RPC functions
  */
 namespace JSON {
-
-	/**
+	class JSONObject {
+		string name;
+		array  variables;
+	}
+/**
 	 * @function escape
 	 * @declaration native function escape( string value )
 	 * @brief Taken a given string in ferite and escape it to the correct standard required by JSON
@@ -43,6 +47,9 @@ namespace JSON {
 		FeriteJSONParser *parser = fmalloc( sizeof(FeriteJSONParser) );
 		FeriteVariable *result = NULL;
 		
+		printf("JSON.parse: %s\n", value->data);
+		
+		parser->named_objects = ferite_create_hash( script, 32 );
 		parser->data = fstrdup(value->data);
 		parser->size = value->length;
 		parser->pos = 0;
@@ -52,6 +59,7 @@ namespace JSON {
 		if( result == NULL )
 			ferite_error( script, 0, "Parse error in stream at character %d: %s", parser->pos, parser->data );
 		
+		ferite_delete_hash( script, parser->named_objects, NULL );
 		ffree( parser->data );
 		ffree( parser );
 		
@@ -60,6 +68,11 @@ namespace JSON {
 		
 		FE_RETURN_VOID;
 	}
+	
+	array valueToJSONObjects;
+	function resetSeenObjects
+		.valueToJSONObjects = [];
+	
 	/**
 	 * @function valueToJSON
 	 * @declaration function valueToJSON( vold value )
@@ -82,8 +95,14 @@ namespace JSON {
 		return '"' + .escape(s) + '"';
 	}
 	function valueToJSON( object value ) {
-		if( value )
-			return value.toJSON();
+		if( value ) {
+			if( not .valueToJSONObjects.keyExists(value.hash()) ) {
+				.valueToJSONObjects[value.hash()] = value;
+				return value.toJSON();
+			} else {
+				return "<${value.hash()}>";
+			}
+		}
 		return "null";
 	}
 	

@@ -1,4 +1,5 @@
 typedef struct __ferite_json_parser {
+	FeriteHash *named_objects;
 	char *data;
 	size_t size;
 	size_t pos;
@@ -48,4 +49,5 @@ FeriteVariable *Ferite_JSON_Parse_Number( FeriteScript *script, FeriteJSONParser
 FeriteVariable *Ferite_JSON_Parse_String( FeriteScript *script, FeriteJSONParser *parser );
 FeriteVariable *Ferite_JSON_Parse_Array( FeriteScript *script, FeriteJSONParser *parser );
 FeriteVariable *Ferite_JSON_Parse_Object( FeriteScript *script, FeriteJSONParser *parser );
+FeriteString *Ferite_JSON_Parse_ObjectReference( FeriteScript *script, FeriteJSONParser *parser );
 FeriteVariable *Ferite_JSON_Parse_Value( FeriteScript *script, FeriteJSONParser *parser );
