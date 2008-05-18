@@ -138,7 +138,7 @@ FeriteVariable *Ferite_JSON_Parse_Object( FeriteScript *script, FeriteJSONParser
 		name = Ferite_JSON_Parse_ObjectReference( script, parser );
 		if( name ) {
 			FeriteVariable *oname = ferite_object_get_var( script, VAO(object), "name" );
-			printf("Found named object %s\n", name->data);
+/*			printf("Found named object %s\n", name->data); */
 			ferite_hash_add( script, parser->named_objects, name->data, VAO(object) );
 			ferite_str_cpy( script, VAS(oname), name );
 			ferite_str_destroy( script, name );
@@ -199,7 +199,7 @@ FeriteVariable *Ferite_JSON_Parse_Value( FeriteScript *script, FeriteJSONParser 
 			break;
 		case '<': {
 			FeriteString *name = Ferite_JSON_Parse_ObjectReference( script, parser );
-			printf("Got referenced object %s\n", name->data);
+/*			printf("Got referenced object %s\n", name->data); */
 			value = ferite_create_object_variable_with_data( script, "object", ferite_hash_get( script, parser->named_objects, name->data ), FE_STATIC );
 			ferite_str_destroy( script, name );
 			break;

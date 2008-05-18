@@ -12,7 +12,6 @@ class modifies Obj {
 		return '{ }';
 }
 
-
 /**
  * @namespace JSON
  * @brief A set of services that provide rapid JSON parsing and RPC functions
@@ -21,8 +20,12 @@ namespace JSON {
 	class JSONObject {
 		string name;
 		array  variables;
+		
+		function toString {
+			return "{'${.name}': ${.variables}}";
+		}
 	}
-/**
+	/**
 	 * @function escape
 	 * @declaration native function escape( string value )
 	 * @brief Taken a given string in ferite and escape it to the correct standard required by JSON
@@ -47,7 +50,7 @@ namespace JSON {
 		FeriteJSONParser *parser = fmalloc( sizeof(FeriteJSONParser) );
 		FeriteVariable *result = NULL;
 		
-		printf("JSON.parse: %s\n", value->data);
+/*		printf("JSON.parse: %s\n", value->data); */
 		
 		parser->named_objects = ferite_create_hash( script, 32 );
 		parser->data = fstrdup(value->data);
