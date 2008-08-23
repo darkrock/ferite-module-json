@@ -157,9 +157,12 @@ namespace JSON {
 			return headers;
 		}
 		
-		object connection;		
+		object connection;
+		number connectElapsedTime;
 		function reconnect( string host, number port ) {
+			.connectElapsedTime = Sys.timestamp();
 			.connection = Network.TCP.connect(host, port, Network.AF_IPV4);
+			.connectElapsedTime = Sys.timestamp() - .connectElapsedTime;
 		}
 		/**
 		 * @function sendRequest
