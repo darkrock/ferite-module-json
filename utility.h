@@ -8,7 +8,7 @@ typedef struct __ferite_json_parser {
 
 /* Parser MACROS */
 #define CURRENT_CHAR( SCRIPT, DS ) (DS)->data[(DS)->pos]
-#define ADVANCE_CHAR( SCRIPT, DS ) (DS)->pos++
+#define ADVANCE_CHAR( SCRIPT, DS ) (DS)->pos++; if(((DS)->size < (DS)->pos)) { return NULL; }
 #define REWIND_CHAR( SCRIPT, DS )  (DS)->pos--
 #define GET_CHAR( SCRIPT, DS )     CURRENT_CHAR(SCRIPT,DS); ADVANCE_CHAR(SCRIPT,DS)
 #define EAT_WHITESPACE( SCRIPT, DS ) \
@@ -27,7 +27,7 @@ typedef struct __ferite_json_parser {
 		ADVANCE_CHAR(SCRIPT,DS); \
 	}
 #define SPIN_RANGE( SCRIPT, DS, BUFFER, LOWER, UPPER ) \
-	while( CURRENT_CHAR(SCRIPT,DS) >= LOWER && CURRENT_CHAR(SCRIPT,DS) <= UPPER ) { \
+	while( CURRENT_CHAR(SCRIPT,DS) >= LOWER && CURRENT_CHAR(SCRIPT,DS) <= UPPER && ((DS)->size > (DS)->pos) ) { \
 		ferite_buffer_add_char(SCRIPT, BUFFER, CURRENT_CHAR(SCRIPT,DS)); \
 		ADVANCE_CHAR(SCRIPT,DS); \
 	}

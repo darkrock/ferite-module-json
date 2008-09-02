@@ -29,6 +29,9 @@ FeriteString *Ferite_JSON_Parse_StringToFeriteString( FeriteScript *script, Feri
 	FeriteBuffer *result = ferite_buffer_new(script, 0);
 	FeriteString *rresult = NULL;
 	
+	if( CURRENT_CHAR(script,parser) != '"' )
+		return NULL;
+
 	ADVANCE_CHAR(script,parser);
 	while( (current = CURRENT_CHAR(script,parser)) != '"' ) {
 		if( current == '\\' ) {
