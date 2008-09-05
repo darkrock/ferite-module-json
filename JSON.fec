@@ -50,8 +50,6 @@ namespace JSON {
 		FeriteJSONParser *parser = fmalloc( sizeof(FeriteJSONParser) );
 		FeriteVariable *result = NULL;
 		
-/*		printf("JSON.parse: %s\n", value->data); */
-		
 		parser->named_objects = ferite_create_hash( script, 32 );
 		parser->data = fstrdup(value->data);
 		parser->size = value->length;
