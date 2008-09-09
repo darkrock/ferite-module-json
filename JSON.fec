@@ -11,7 +11,7 @@ class modifies Obj {
 	function toJSON() 
 		return '{ }';
 	function toJSONTag()
-		return "<${value.hash()}>;
+		return "<${value.hash()}>";
 }
 
 /**
