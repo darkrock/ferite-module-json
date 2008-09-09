@@ -10,6 +10,8 @@ module-header {
 class modifies Obj {
 	function toJSON() 
 		return '{ }';
+	function toJSONTag()
+		return "<${value.hash()}>;
 }
 
 /**
@@ -101,7 +103,7 @@ namespace JSON {
 				.valueToJSONObjects[value.hash()] = value;
 				return value.toJSON();
 			} else {
-				return "<${value.hash()}>";
+				return value.toJSONTag();
 			}
 		}
 		return "null";
