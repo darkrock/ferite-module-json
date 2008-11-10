@@ -1,5 +1,116 @@
 #include "JSON_header.h"
 
+int Ferite_UTF8_CharacterLength( FeriteString *data, int offset ) {
+	if( data->length ) {
+		int length = data->length;
+		int i = offset;
+		unsigned char b1 = data->data[i];
+		if( (b1 & 0xC0) == 0xC0 ) {
+			unsigned char b2 = ((i + 1) < length ? data->data[i+1] : 0);
+			unsigned char b3 = ((i + 2) < length ? data->data[i+2] : 0);
+			unsigned char b4 = ((i + 3) < length ? data->data[i+3] : 0);
+
+			// We do a proper check
+			// 2 byte
+			if( (b1 & 0xC0) == 0xC0 &&
+				(b2 & 0x80) == 0x80 ) {
+				return 2;
+			}
+
+			// 3 byte
+			if( (b1 & 0xE0) == 0xE0 &&
+				(b2 & 0x80) == 0x80 &&
+				(b3 & 0x80) == 0x80 ) {
+				return 3;
+			}
+
+			// 4 byte
+			if( (b1 & 0xF0) == 0xF0 &&
+				(b2 & 0x80) == 0x80 &&
+				(b3 & 0x80) == 0x80 &&
+				(b4 & 0x80) == 0x80 ) {
+				return 4;
+			}
+		}
+		return 1;
+	}
+	return 0;
+}
+int Ferite_UTF8_CharacterCodePoint( FeriteString *data, int offset ) {
+	int characterSize = Ferite_UTF8_CharacterLength( data, offset );
+	int characterValue = 0;
+	char *character = data->data;
+	
+	switch( characterSize ) {
+		case 1:
+			characterValue =   character[offset + 0];
+			break;
+		case 2:
+			characterValue = ((character[offset + 0] & 0x1F) << 6) + 
+							  (character[offset + 1] & 0x3F);
+			break;
+		case 3:
+			characterValue = ((character[offset + 0] & 0xF) << 12) + 
+							 ((character[offset + 1] & 0x3F) << 6) + 
+							  (character[offset + 2] & 0x3F);
+			break;
+		case 4:
+			characterValue = ((character[offset + 0] & 0x7) << 18) + 
+							 ((character[offset + 1] & 0x3F) << 12) + 
+							 ((character[offset + 2] & 0x3F) << 6) + 
+							  (character[offset + 3] & 0x3F);
+			break;
+	}
+	return characterValue;
+}
+char _codePointValue[128];
+char *Ferite_UTF8_CodePointCharacter( int characterValue ) {
+	memset(_codePointValue, 0, 128);
+	
+	// Position 0 - 127 is equal to percent-encoding with an ASCII character encoding:
+	if (characterValue < 128) {
+		_codePointValue[0] = characterValue;
+	}
+
+	// Position 128 - 2047: two bytes for UTF-8 character encoding.
+	if (characterValue > 127 && characterValue < 2048) {
+		// First UTF byte: Mask the first five bits of characterValue with binary 110X.XXXX:
+		_codePointValue[0] = ((characterValue >> 6) | 0xC0);
+		// Second UTF byte: Get last six bits of characterValue and mask them with binary 10XX.XXXX:
+		_codePointValue[1] = ((characterValue & 0x3F) | 0x80);
+	}
+
+	// Position 2048 - 65535: three bytes for UTF-8 character encoding.
+	if (characterValue > 2047 && characterValue < 65536) {
+		// First UTF byte: Mask the first four bits of characterValue with binary 1110.XXXX:
+		_codePointValue[0] = ((characterValue >> 12) | 0xE0);
+		// Second UTF byte: Get the next six bits of characterValue and mask them binary 10XX.XXXX:
+		_codePointValue[1] = (((characterValue >> 6) & 0x3F) | 0x80);
+		// Third UTF byte: Get the last six bits of characterValue and mask them binary 10XX.XXXX:
+		_codePointValue[2] = ((characterValue & 0x3F) | 0x80);
+	}
+
+	// Position 65536 - : four bytes for UTF-8 character encoding.
+	if (characterValue > 65535) {
+		// First UTF byte: Mask the first three bits of characterValue with binary 1111.0XXX:
+		_codePointValue[0] = ((characterValue >> 18) | 0xF0);
+		// Second UTF byte: Get the next six bits of characterValue and mask them binary 10XX.XXXX:
+		_codePointValue[1] = (((characterValue >> 12) & 0x3F) | 0x80);
+		// Third UTF byte: Get the last six bits of characterValue and mask them binary 10XX.XXXX:
+		_codePointValue[2] = (((characterValue >> 6) & 0x3F) | 0x80);
+		// Fourth UTF byte: Get the last six bits of characterValue and mask them binary 10XX.XXXX:
+		_codePointValue[3] = ((characterValue & 0x3F) | 0x80);
+	}
+	return _codePointValue;
+}
+
+char _hexValue[128];
+char *Ferite_HexValue( int value ) {
+	memset(_hexValue, 0, 128);
+	sprintf(_hexValue, "\\u%04X", value );
+	return _hexValue;
+}
+
 FeriteString *Ferite_JSON_EscapeString( FeriteScript *script, FeriteString *data ) {
 	size_t length = data->length, i = 0;
 	FeriteBuffer *new_data = ferite_buffer_new( script, length * 2 );
@@ -16,8 +127,16 @@ FeriteString *Ferite_JSON_EscapeString( FeriteScript *script, FeriteString *data
 			case '\f': ferite_buffer_add_str(script, new_data, "\\f"); break;
 			case '\r': ferite_buffer_add_str(script, new_data, "\\r"); break;
 			case '\t': ferite_buffer_add_str(script, new_data, "\\t"); break;
-			default:
-				ferite_buffer_add_char(script, new_data, current);
+			default: {
+				int length = Ferite_UTF8_CharacterLength( data, i );
+				int codepoint = Ferite_UTF8_CharacterCodePoint( data, i );
+				if( codepoint > 127 ) {
+					ferite_buffer_add_str( script, new_data, Ferite_HexValue(codepoint) );
+				} else {
+					ferite_buffer_add_char(script, new_data, current);
+				}
+				i += (length - 1);
+			}
 		}
 	}
 	real_data = ferite_buffer_to_str( script, new_data );
@@ -46,7 +165,25 @@ FeriteString *Ferite_JSON_Parse_StringToFeriteString( FeriteScript *script, Feri
 				case 'f':  ferite_buffer_add_char(script, result, '\f'); break;
 				case 'r':  ferite_buffer_add_char(script, result, '\r'); break;
 				case 't':  ferite_buffer_add_char(script, result, '\t'); break;
-				case 'u':  ferite_buffer_add_str(script, result, "\\u"); break;
+				case 'u': {
+					char buffer[5];
+					int value = 0;
+					memset( buffer, 0, 5 );
+					
+					ADVANCE_CHAR(script, parser);
+					buffer[0] = CURRENT_CHAR(script, parser);
+					ADVANCE_CHAR(script, parser);
+					buffer[1] = CURRENT_CHAR(script, parser);
+					ADVANCE_CHAR(script, parser);
+					buffer[2] = CURRENT_CHAR(script, parser);
+					ADVANCE_CHAR(script, parser);
+					buffer[3] = CURRENT_CHAR(script, parser);
+					
+					value = strtol( buffer, NULL, 16 );
+					
+					ferite_buffer_add_str(script, result, Ferite_UTF8_CodePointCharacter(value));
+					break;
+				}
 			}
 		} else {
 			ferite_buffer_add_char(script, result, current);
