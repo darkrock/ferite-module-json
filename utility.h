@@ -11,15 +11,36 @@ typedef struct __ferite_json_parser {
 #define ADVANCE_CHAR( SCRIPT, DS ) (DS)->pos++; if(((DS)->size < (DS)->pos)) { return NULL; }
 #define REWIND_CHAR( SCRIPT, DS )  (DS)->pos--
 #define GET_CHAR( SCRIPT, DS )     CURRENT_CHAR(SCRIPT,DS); ADVANCE_CHAR(SCRIPT,DS)
-#define EAT_WHITESPACE( SCRIPT, DS ) \
+#define EAT_WHITESPACE( CONTEXT, DS ) \
 	do { \
-		while( (DS)->size > (DS)->pos && \
-		       ((DS)->data[(DS)->pos] == ' '  || \
-		        (DS)->data[(DS)->pos] == '\n' || \
-		        (DS)->data[(DS)->pos] == '\r' || \
-		        (DS)->data[(DS)->pos] == '\t') ) { \
-			(DS)->pos++; \
-		} \
+		Boolean ate_some_characters = FALSE; \
+		do { \
+			ate_some_characters = FALSE; \
+			while( (DS)->size > (DS)->pos AND \
+			       ((DS)->data[(DS)->pos] == ' '  || \
+			        (DS)->data[(DS)->pos] == '\n' || \
+			        (DS)->data[(DS)->pos] == '\r' || \
+			        (DS)->data[(DS)->pos] == '\t') ) { \
+				ate_some_characters = TRUE; \
+				ADVANCE_CHAR( CONTEXT, DS ); \
+			} \
+			if( CURRENT_CHAR(CONTEXT,DS) == '/' ) { \
+				ate_some_characters = TRUE; \
+				ADVANCE_CHAR(CONTEXT,DS); \
+				if( CURRENT_CHAR(CONTEXT,DS) == '/' ) { \
+					while( CURRENT_CHAR(CONTEXT,DS) != '\n' ) { \
+						ADVANCE_CHAR(CONTEXT,DS); \
+					} \
+				} else if( CURRENT_CHAR(CONTEXT,DS) == '*' ) { \
+					char previous_character = 0; \
+					ADVANCE_CHAR(CONTEXT,DS); \
+					while( CURRENT_CHAR(CONTEXT,DS) != '/' AND previous_character != '*' ) { \
+						previous_character = GET_CHAR(CONTEXT,DS); \
+					} \
+				} \
+				ADVANCE_CHAR(CONTEXT,DS); \
+			} \
+		} while( ate_some_characters ); \
 	} while(0);
 #define CHECK_AND_PUSH( SCRIPT, DS, BUFFER, CHECK ) \
 	if( CURRENT_CHAR(SCRIPT,DS) == CHECK ) { \
