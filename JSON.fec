@@ -156,6 +156,9 @@ namespace JSON {
 					if( headers.keyExists('Content-Length') )
 						content = o.read( headers['Content-Length'].toNumber() ).trim("\r\n");
 					headers['Content'] = content;
+					if( Sys.env.read("DEBUG_JSON") ) {
+						Console.println("JSON.RPC.readContent: '$content'");
+					}
 					keepReading = false;
 				}
 			}
