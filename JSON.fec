@@ -19,6 +19,8 @@ class modifies Obj {
  * @brief A set of services that provide rapid JSON parsing and RPC functions
  */
 namespace JSON {
+	object json_output;
+	
 	class JSONObject {
 		string name;
 		array  variables;
@@ -142,7 +144,7 @@ namespace JSON {
 
 				line = line.trim("\r\n");
 				if( Sys.env.read("DEBUG_JSON") ) {
-					Console.println("JSON.RPC.readResponse: line: '$line'");
+					JSON.json_output.invoke("JSON.RPC.readResponse: line: '$line'");
 				}
 				if( line and (match = Regexp.match("HTTP/1\.[10] ([0-9]+) ([A-Za-z ]+)", line)) ) {
 					headers['Response-Code'] = match.capture(0).toNumber();
@@ -153,11 +155,18 @@ namespace JSON {
 					headers[match.capture(0)] = match.capture(1);
 				}
 				else if( not line and seenLeadingLine ) {
-					if( headers.keyExists('Content-Length') )
+					if( headers.keyExists('Content-Length') ) {
+						if( Sys.env.read("DEBUG_JSON") ) {
+							JSON.json_output.invoke("JSON.RPC.readContent start");
+						}
 						content = o.read( headers['Content-Length'].toNumber() ).trim("\r\n");
+						if( Sys.env.read("DEBUG_JSON") ) {
+							JSON.json_output.invoke("JSON.RPC.readContent end");
+						}
+					}
 					headers['Content'] = content;
 					if( Sys.env.read("DEBUG_JSON") ) {
-						Console.println("JSON.RPC.readContent: '$content'");
+						JSON.json_output.invoke("JSON.RPC.readContent: '$content'");
 					}
 					keepReading = false;
 				}
@@ -184,7 +193,7 @@ namespace JSON {
 		 */
 		function sendRequest( string host, number port, string url, string content ) {
 			if( Sys.env.read("DEBUG_JSON") )
-				Console.println("$content");
+				JSON.json_output.invoke("$content");
 			if( not .connection )
 				.reconnect( host, port );
 			if( .connection ) {
@@ -236,3 +245,7 @@ namespace JSON {
 	/** @end */
 }
 /** @end */
+
+JSON.json_output = closure( void data ) {
+	Console.println("[${Sys.timestamp()}] $data");
+};
