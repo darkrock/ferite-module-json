@@ -10,11 +10,12 @@ int Ferite_UTF8_CharacterLength( FeriteString *data, int offset ) {
 			unsigned char b3 = ((i + 2) < length ? data->data[i+2] : 0);
 			unsigned char b4 = ((i + 3) < length ? data->data[i+3] : 0);
 
-			// We do a proper check
-			// 2 byte
-			if( (b1 & 0xC0) == 0xC0 &&
-				(b2 & 0x80) == 0x80 ) {
-				return 2;
+			// 4 byte
+			if( (b1 & 0xF0) == 0xF0 &&
+				(b2 & 0x80) == 0x80 &&
+				(b3 & 0x80) == 0x80 &&
+				(b4 & 0x80) == 0x80 ) {
+				return 4;
 			}
 
 			// 3 byte
@@ -24,12 +25,11 @@ int Ferite_UTF8_CharacterLength( FeriteString *data, int offset ) {
 				return 3;
 			}
 
-			// 4 byte
-			if( (b1 & 0xF0) == 0xF0 &&
-				(b2 & 0x80) == 0x80 &&
-				(b3 & 0x80) == 0x80 &&
-				(b4 & 0x80) == 0x80 ) {
-				return 4;
+			// We do a proper check
+			// 2 byte
+			if( (b1 & 0xC0) == 0xC0 &&
+				(b2 & 0x80) == 0x80 ) {
+				return 2;
 			}
 		}
 		return 1;
@@ -41,6 +41,7 @@ int Ferite_UTF8_CharacterCodePoint( FeriteString *data, int offset ) {
 	int characterValue = 0;
 	char *character = data->data;
 	
+	printf("Character size: %d\n", characterSize);
 	switch( characterSize ) {
 		case 1:
 			characterValue =   character[offset + 0];
@@ -108,6 +109,7 @@ char _hexValue[128];
 char *Ferite_HexValue( int value ) {
 	memset(_hexValue, 0, 128);
 	sprintf(_hexValue, "\\u%04X", value );
+	printf("Hexvalue: %s for %d [%d]\n", _hexValue, value, strlen(_hexValue));
 	return _hexValue;
 }
 
@@ -132,15 +134,17 @@ FeriteString *Ferite_JSON_EscapeString( FeriteScript *script, FeriteString *data
 				int codepoint = Ferite_UTF8_CharacterCodePoint( data, i );
 				if( codepoint > 127 ) {
 					ferite_buffer_add_str( script, new_data, Ferite_HexValue(codepoint) );
+					printf("Length: %d\n", length);
+					i += length - 1;
 				} else {
 					ferite_buffer_add_char(script, new_data, current);
 				}
-				i += (length - 1);
 			}
 		}
 	}
 	real_data = ferite_buffer_to_str( script, new_data );
 	ferite_buffer_delete( script, new_data );
+	printf("String: '%s' [%d, %d]\n", real_data->data, real_data->length, strlen(real_data->data));
 	return real_data;
 }
 FeriteString *Ferite_JSON_Parse_StringToFeriteString( FeriteScript *script, FeriteJSONParser *parser ) {
