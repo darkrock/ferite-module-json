@@ -41,7 +41,6 @@ int Ferite_UTF8_CharacterCodePoint( FeriteString *data, int offset ) {
 	int characterValue = 0;
 	char *character = data->data;
 	
-	printf("Character size: %d\n", characterSize);
 	switch( characterSize ) {
 		case 1:
 			characterValue =   character[offset + 0];
@@ -109,7 +108,6 @@ char _hexValue[128];
 char *Ferite_HexValue( int value ) {
 	memset(_hexValue, 0, 128);
 	sprintf(_hexValue, "\\u%04X", value );
-	printf("Hexvalue: %s for %d [%d]\n", _hexValue, value, strlen(_hexValue));
 	return _hexValue;
 }
 
@@ -134,7 +132,6 @@ FeriteString *Ferite_JSON_EscapeString( FeriteScript *script, FeriteString *data
 				int codepoint = Ferite_UTF8_CharacterCodePoint( data, i );
 				if( codepoint > 127 ) {
 					ferite_buffer_add_str( script, new_data, Ferite_HexValue(codepoint) );
-					printf("Length: %d\n", length);
 					i += length - 1;
 				} else {
 					ferite_buffer_add_char(script, new_data, current);
@@ -144,7 +141,6 @@ FeriteString *Ferite_JSON_EscapeString( FeriteScript *script, FeriteString *data
 	}
 	real_data = ferite_buffer_to_str( script, new_data );
 	ferite_buffer_delete( script, new_data );
-	printf("String: '%s' [%d, %d]\n", real_data->data, real_data->length, strlen(real_data->data));
 	return real_data;
 }
 FeriteString *Ferite_JSON_Parse_StringToFeriteString( FeriteScript *script, FeriteJSONParser *parser ) {
