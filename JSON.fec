@@ -75,7 +75,7 @@ namespace JSON {
 	}
 	
 	array valueToJSONObjects;
-	function resetSeenObjects
+	function resetSeenObjects()
 		.valueToJSONObjects = [];
 	
 	/**
