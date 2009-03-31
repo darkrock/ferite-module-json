@@ -22,11 +22,14 @@ namespace JSON {
 	object json_output;
 	
 	class JSONObject {
-		string name;
-		array  variables;
+		string _name;
+		array  _variables;
 		
 		function toString {
-			return "{'${.name}': ${.variables}}";
+			return "{'${._name}': ${._variables.keys()}}";
+		}
+		function attribute_missing( string name ) {
+			return ._variables[name];
 		}
 	}
 	/**
