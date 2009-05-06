@@ -255,6 +255,11 @@ FeriteVariable *Ferite_JSON_Parse_Array( FeriteScript *script, FeriteJSONParser 
 
 		EAT_WHITESPACE( script, parser );
 		value = Ferite_JSON_Parse_Value( script, parser );
+		if( !value ) {
+			ferite_error( script, 0, "Value is NULL" );
+			return NULL;
+		}
+		
 		ferite_uarray_add( script, VAUA(array), value, NULL, FE_ARRAY_ADD_AT_END );
 
 		EAT_WHITESPACE( script, parser );
@@ -297,7 +302,10 @@ FeriteVariable *Ferite_JSON_Parse_Object( FeriteScript *script, FeriteJSONParser
 
 		EAT_WHITESPACE( script, parser );
 		value = Ferite_JSON_Parse_Value( script, parser );
-		
+		if( !value ) {
+			ferite_error( script, 0, "Value is NULL" );
+			return NULL;
+		}
 		ferite_uarray_add( script, VAUA(ovalues), value, key->data, FE_ARRAY_ADD_AT_END );
 		ferite_str_destroy( script, key );
 
