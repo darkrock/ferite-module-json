@@ -6,6 +6,7 @@
         <property type="C">
 			<program-output program="ferite-config" arguments="--cflags" />
 		</property>
+		<add-property type="C" value="-g" />
         
         <!-- LD flags -->
         <add-property type="LD">

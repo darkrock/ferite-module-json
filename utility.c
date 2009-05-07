@@ -193,6 +193,7 @@ FeriteString *Ferite_JSON_Parse_StringToFeriteString( FeriteScript *script, Feri
 	ADVANCE_CHAR(script, parser);
 	rresult = ferite_buffer_to_str( script, result );
 	ferite_buffer_delete( script, result );
+	printf("Got string: '%s'\n", rresult->data);
 	return rresult;
 }
 
@@ -255,10 +256,10 @@ FeriteVariable *Ferite_JSON_Parse_Array( FeriteScript *script, FeriteJSONParser 
 
 		EAT_WHITESPACE( script, parser );
 		value = Ferite_JSON_Parse_Value( script, parser );
-		if( !value ) {
-			ferite_error( script, 0, "Value is NULL" );
-			return NULL;
-		}
+//		if( !value ) {
+//			ferite_error( script, 0, "Value is NULL" );
+//			return NULL;
+//		}
 		
 		ferite_uarray_add( script, VAUA(array), value, NULL, FE_ARRAY_ADD_AT_END );
 
@@ -295,6 +296,7 @@ FeriteVariable *Ferite_JSON_Parse_Object( FeriteScript *script, FeriteJSONParser
 
 		EAT_WHITESPACE( script, parser );
 		if( CURRENT_CHAR( script, parser ) !=  ':' ) {
+			printf("error\n");
 			ferite_error( script, 0, "Expecting :" );
 			return NULL;
 		}
@@ -302,10 +304,10 @@ FeriteVariable *Ferite_JSON_Parse_Object( FeriteScript *script, FeriteJSONParser
 
 		EAT_WHITESPACE( script, parser );
 		value = Ferite_JSON_Parse_Value( script, parser );
-		if( !value ) {
-			ferite_error( script, 0, "Value is NULL" );
-			return NULL;
-		}
+//		if( !value ) {
+//			ferite_error( script, 0, "Value is NULL" );
+//			return NULL;
+//		}
 		ferite_uarray_add( script, VAUA(ovalues), value, key->data, FE_ARRAY_ADD_AT_END );
 		ferite_str_destroy( script, key );
 
