@@ -63,7 +63,13 @@ typedef struct __ferite_json_parser {
 			} \
 		} \
 	}
-
+#define CHECK_ERROR( SCRIPT ) \
+	{ \
+		if( script->error_state == FE_ERROR_THROWN ) { \
+			return NULL; \
+		} \
+	}
+	
 FeriteString *Ferite_JSON_EscapeString( FeriteScript *script, FeriteString *data );
 FeriteString *Ferite_JSON_Parse_StringToFeriteString( FeriteScript *script, FeriteJSONParser *parser );
 FeriteVariable *Ferite_JSON_Parse_Number( FeriteScript *script, FeriteJSONParser *parser );

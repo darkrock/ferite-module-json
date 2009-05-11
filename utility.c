@@ -154,6 +154,7 @@ FeriteString *Ferite_JSON_Parse_StringToFeriteString( FeriteScript *script, Feri
 	ADVANCE_CHAR(script,parser);
 	while( (current = CURRENT_CHAR(script,parser)) != '"' ) {
 		if( current == '\\' ) {
+			int success = FE_TRUE;
 			ADVANCE_CHAR(script, parser);
 			next = CURRENT_CHAR(script, parser);
 			switch( next ) {
@@ -171,21 +172,56 @@ FeriteString *Ferite_JSON_Parse_StringToFeriteString( FeriteScript *script, Feri
 					memset( buffer, 0, 5 );
 					
 					ADVANCE_CHAR(script, parser);
-					buffer[0] = CURRENT_CHAR(script, parser);
-					ADVANCE_CHAR(script, parser);
-					buffer[1] = CURRENT_CHAR(script, parser);
-					ADVANCE_CHAR(script, parser);
-					buffer[2] = CURRENT_CHAR(script, parser);
-					ADVANCE_CHAR(script, parser);
-					buffer[3] = CURRENT_CHAR(script, parser);
 					
-					value = strtol( buffer, NULL, 16 );
-					
-					ferite_buffer_add_str(script, result, Ferite_UTF8_CodePointCharacter(value));
+					if( CURRENT_CHAR(script,parser) != '"' ) {
+						buffer[0] = CURRENT_CHAR(script, parser);
+						ADVANCE_CHAR(script, parser);
+					} else {
+						success = FE_FALSE;
+					}
+					if( CURRENT_CHAR(script,parser) != '"' ) {
+						buffer[1] = CURRENT_CHAR(script, parser);
+						ADVANCE_CHAR(script, parser);
+					} else {
+						success = FE_FALSE;
+					}
+					if( CURRENT_CHAR(script,parser) != '"' ) {
+						buffer[2] = CURRENT_CHAR(script, parser);
+						ADVANCE_CHAR(script, parser);
+					} else {
+						success = FE_FALSE;
+					}
+					if( CURRENT_CHAR(script,parser) != '"' ) {
+						buffer[3] = CURRENT_CHAR(script, parser);
+					} else {
+						success = FE_FALSE;
+					}
+
+#ifdef DEBUG_JSON
+					printf("%c [%d]\n", buffer[0], buffer[0]);
+					printf("%c [%d]\n", buffer[1], buffer[1]);
+					printf("%c [%d]\n", buffer[2], buffer[2]);
+					printf("%c [%d]\n", buffer[3], buffer[3]);
+#endif
+
+					if( success ) {
+#ifdef DEBUG_JSON
+						printf("Success\n");
+#endif
+						value = strtol( buffer, NULL, 16 );
+						ferite_buffer_add_str(script, result, Ferite_UTF8_CodePointCharacter(value));
+					}
 					break;
 				}
 			}
+			if( !success ) {
+				ferite_error(script, 0, "Error parsing string!");
+				break;
+			}
 		} else {
+#ifdef DEBUG_JSON
+			printf("%c [%d]\n", current, current);
+#endif
 			ferite_buffer_add_char(script, result, current);
 		}
 		ADVANCE_CHAR(script, parser);
@@ -193,7 +229,9 @@ FeriteString *Ferite_JSON_Parse_StringToFeriteString( FeriteScript *script, Feri
 	ADVANCE_CHAR(script, parser);
 	rresult = ferite_buffer_to_str( script, result );
 	ferite_buffer_delete( script, result );
+#ifdef DEBUG_JSON
 	printf("Got string: '%s'\n", rresult->data);
+#endif
 	return rresult;
 }
 
@@ -256,10 +294,7 @@ FeriteVariable *Ferite_JSON_Parse_Array( FeriteScript *script, FeriteJSONParser 
 
 		EAT_WHITESPACE( script, parser );
 		value = Ferite_JSON_Parse_Value( script, parser );
-//		if( !value ) {
-//			ferite_error( script, 0, "Value is NULL" );
-//			return NULL;
-//		}
+		CHECK_ERROR(script);
 		
 		ferite_uarray_add( script, VAUA(array), value, NULL, FE_ARRAY_ADD_AT_END );
 
@@ -294,6 +329,8 @@ FeriteVariable *Ferite_JSON_Parse_Object( FeriteScript *script, FeriteJSONParser
 		FeriteString *key = Ferite_JSON_Parse_StringToFeriteString( script, parser );
 		FeriteVariable *value = NULL;
 
+		CHECK_ERROR(script);
+
 		EAT_WHITESPACE( script, parser );
 		if( CURRENT_CHAR( script, parser ) !=  ':' ) {
 			printf("error\n");
@@ -304,10 +341,8 @@ FeriteVariable *Ferite_JSON_Parse_Object( FeriteScript *script, FeriteJSONParser
 
 		EAT_WHITESPACE( script, parser );
 		value = Ferite_JSON_Parse_Value( script, parser );
-//		if( !value ) {
-//			ferite_error( script, 0, "Value is NULL" );
-//			return NULL;
-//		}
+		CHECK_ERROR(script);
+
 		ferite_uarray_add( script, VAUA(ovalues), value, key->data, FE_ARRAY_ADD_AT_END );
 		ferite_str_destroy( script, key );
 
@@ -371,5 +406,6 @@ FeriteVariable *Ferite_JSON_Parse_Value( FeriteScript *script, FeriteJSONParser 
 			value = Ferite_JSON_Parse_Number( script, parser );
 			break;
 	}
+	CHECK_ERROR(script);
 	return value;
 }
