@@ -311,20 +311,11 @@ FeriteVariable *Ferite_JSON_Parse_Object( FeriteScript *script, FeriteJSONParser
 	FeriteVariable *object = ferite_new_object(script, ferite_find_namespace_element_contents( script, script->mainns, "JSON.JSONObject", FENS_CLS), NULL);
 	FeriteVariable *ovalues = ferite_object_get_var( script, VAO(object), "_variables" );
 	FeriteString *name = NULL;
+	int seen_reference = FE_FALSE;
 	
 	parser->depth++;
 	ADVANCE_CHAR( script, parser );
 	EAT_WHITESPACE( script, parser );
-	if( CURRENT_CHAR( script, parser ) == '<' ) {
-		name = Ferite_JSON_Parse_ObjectReference( script, parser );
-		if( name ) {
-			FeriteVariable *oname = ferite_object_get_var( script, VAO(object), "_name" );
-			ferite_hash_add( script, parser->named_objects, name->data, VAO(object) );
-			ferite_str_cpy( script, VAS(oname), name );
-			ferite_str_destroy( script, name );
-		}
-		EAT_WHITESPACE( script, parser );
-	}
 	while( CURRENT_CHAR( script, parser ) != '}' ) {
 		FeriteString *key = Ferite_JSON_Parse_StringToFeriteString( script, parser );
 		FeriteVariable *value = NULL;
@@ -340,10 +331,29 @@ FeriteVariable *Ferite_JSON_Parse_Object( FeriteScript *script, FeriteJSONParser
 		ADVANCE_CHAR( script, parser );
 
 		EAT_WHITESPACE( script, parser );
-		value = Ferite_JSON_Parse_Value( script, parser );
-		CHECK_ERROR(script);
+		
+		if( !seen_reference && strcmp(key->data, ":reference") == 0 ) {
+			FeriteString *object_id = Ferite_JSON_Parse_StringToFeriteString( script, parser );
+			FeriteObject *target = ferite_hash_get( script, parser->named_objects, object_id->data );
+			
+			if( target ) {
+				FDECREFI(VAO(object), object->refcount);
+				VAO(object) = target;
+				FINCREFI(VAO(object), object->refcount);
+			} else {
+				FeriteVariable *oname = ferite_object_get_var( script, VAO(object), "_name" );
+				ferite_str_cpy( script, VAS(oname), object_id );
+				ferite_hash_add( script, parser->named_objects, object_id->data, VAO(object) );
+			}
+			ferite_str_destroy( script, object_id );
+		} else {
+			value = Ferite_JSON_Parse_Value( script, parser );
+			CHECK_ERROR(script);
 
-		ferite_uarray_add( script, VAUA(ovalues), value, key->data, FE_ARRAY_ADD_AT_END );
+			ferite_uarray_add( script, VAUA(ovalues), value, key->data, FE_ARRAY_ADD_AT_END );
+		}
+		seen_reference = FE_TRUE;
+
 		ferite_str_destroy( script, key );
 
 		EAT_WHITESPACE( script, parser );
@@ -356,21 +366,6 @@ FeriteVariable *Ferite_JSON_Parse_Object( FeriteScript *script, FeriteJSONParser
 	parser->depth--;
 	return object;
 }
-FeriteString *Ferite_JSON_Parse_ObjectReference( FeriteScript *script, FeriteJSONParser *parser ) {
-	char current, next;
-	FeriteBuffer *result = ferite_buffer_new(script, 0);
-	FeriteString *rresult = NULL;
-	
-	ADVANCE_CHAR(script,parser);
-	while( (current = CURRENT_CHAR(script,parser)) != '>' ) {
-		ferite_buffer_add_char(script, result, current);
-		ADVANCE_CHAR(script, parser);
-	}
-	ADVANCE_CHAR(script, parser);
-	rresult = ferite_buffer_to_str( script, result );
-	ferite_buffer_delete( script, result );
-	return rresult;
-}
 FeriteVariable *Ferite_JSON_Parse_Value( FeriteScript *script, FeriteJSONParser *parser ) {
 	FeriteVariable *value = NULL;
 	EAT_WHITESPACE( script, parser );
@@ -381,12 +376,6 @@ FeriteVariable *Ferite_JSON_Parse_Value( FeriteScript *script, FeriteJSONParser 
 		case '{':
 			value = Ferite_JSON_Parse_Object( script, parser );
 			break;
-		case '<': {
-			FeriteString *name = Ferite_JSON_Parse_ObjectReference( script, parser );
-			value = ferite_create_object_variable_with_data( script, "object", ferite_hash_get( script, parser->named_objects, name->data ), FE_STATIC );
-			ferite_str_destroy( script, name );
-			break;
-		}
 		case '[':
 			value = Ferite_JSON_Parse_Array( script, parser );
 			break;
