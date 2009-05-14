@@ -11,7 +11,7 @@ class modifies Obj {
 	function toJSON() 
 		return '{ }';
 	function toJSONTag()
-		return "{ \":reference\": \"${value.hash()}\" }";
+		return "{ \":reference\": \"${.hash()}\" }";
 }
 
 /**
@@ -104,8 +104,8 @@ namespace JSON {
 	}
 	function valueToJSON( object value ) {
 		if( value ) {
-			if( not .valueToJSONObjects.keyExists(value.hash()) ) {
-				.valueToJSONObjects[value.hash()] = value;
+			if( not .valueToJSONObjects.keyExists(value.toJSONTag()) ) {
+				.valueToJSONObjects[value.toJSONTag()] = value;
 				return value.toJSON();
 			} else {
 				return value.toJSONTag();
