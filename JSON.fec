@@ -92,15 +92,27 @@ namespace JSON {
 		return (value ? "true" : "false");
 	function valueToJSON( number value )
 		return "$value";
-	function valueToJSON( array value ) {
-		array values;
-		value.each() using ( v ) {
-			values[] = .valueToJSON(v);
-		};
-		return "[ " + values.join(", ") + " ]";
-	}
-	function valueToJSON( string s ) {
+	function valueToJSON( string s )
 		return '"' + .escape(s) + '"';
+	function valueToJSON( array value ) {
+		if( value.keys() ) {
+			return .keyedArrayToJSON(value);
+		} else {
+			return .standardArrayToJSON(value);
+		}
+	}
+	function standardArrayToJSON( array value ) {
+		return "[" + value.join(",") using ( innerValue ) {
+			return .valueToJSON(innerValue);
+		} + "]";
+	}
+	function keyedArrayToJSON( array value ) {
+		array keys = value.keys();
+		return '{' + keys.join(',') using ( _key ) {
+			string key = JSON.escape(_key);
+			string innerValue = .valueToJSON(value[_key]);
+			return "\"$key\":$innerValue";
+		} + '}';
 	}
 	function valueToJSON( object value ) {
 		if( value ) {
