@@ -133,7 +133,7 @@ FeriteString *Ferite_JSON_EscapeString( FeriteScript *script, FeriteString *data
 				if( codepoint > 127 ) {
 					ferite_buffer_add_str( script, new_data, Ferite_HexValue(codepoint) );
 					i += length - 1;
-				} else {
+				} else if( codepoint >= 32 ){
 					ferite_buffer_add_char(script, new_data, current);
 				}
 			}
