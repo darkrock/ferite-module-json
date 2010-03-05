@@ -39,11 +39,6 @@ namespace JSON {
 		constructor( void klass ) {
 			.root_class = klass;
 		}
-		function objectForArrayElement( number i ) {
-			void root_class = .root_class;
-			Console.println("Returning object for $i");
-			return new root_class();
-		}
 	}
 	
 	/**
