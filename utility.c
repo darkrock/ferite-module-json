@@ -1,5 +1,7 @@
 #include "JSON_header.h"
 
+FeriteClass *JSONArrayHandler = NULL;
+
 int Ferite_UTF8_CharacterLength( FeriteString *data, int offset ) {
 	if( data->length ) {
 		int length = data->length;
@@ -63,7 +65,7 @@ int Ferite_UTF8_CharacterCodePoint( FeriteString *data, int offset ) {
 	}
 	return characterValue;
 }
-char _codePointValue[128];
+static char _codePointValue[128];
 char *Ferite_UTF8_CodePointCharacter( int characterValue ) {
 	memset(_codePointValue, 0, 128);
 	
@@ -143,10 +145,13 @@ FeriteString *Ferite_JSON_EscapeString( FeriteScript *script, FeriteString *data
 	ferite_buffer_delete( script, new_data );
 	return real_data;
 }
-FeriteString *Ferite_JSON_Parse_StringToFeriteString( FeriteScript *script, FeriteJSONParser *parser ) {
+FeriteString *Ferite_JSON_Parse_StringToFeriteString( FeriteScript *script, FeriteJSONParser *parser, int *valid_ferite_identifier ) {
 	char current, next;
 	FeriteBuffer *result = ferite_buffer_new(script, 0);
 	FeriteString *rresult = NULL;
+	
+	if( valid_ferite_identifier )
+		*valid_ferite_identifier = FE_TRUE;
 	
 	if( CURRENT_CHAR(script,parser) != '"' )
 		return NULL;
@@ -155,6 +160,9 @@ FeriteString *Ferite_JSON_Parse_StringToFeriteString( FeriteScript *script, Feri
 	while( (current = CURRENT_CHAR(script,parser)) != '"' ) {
 		if( current == '\\' ) {
 			int success = FE_TRUE;
+			
+			*valid_ferite_identifier = FE_FALSE;
+			
 			ADVANCE_CHAR(script, parser);
 			next = CURRENT_CHAR(script, parser);
 			switch( next ) {
@@ -222,6 +230,14 @@ FeriteString *Ferite_JSON_Parse_StringToFeriteString( FeriteScript *script, Feri
 #ifdef DEBUG_JSON
 			printf("%c [%d]\n", current, current);
 #endif
+			if( valid_ferite_identifier && *valid_ferite_identifier && !(
+				(current >= 'a' && current <= 'z') ||
+				(current >= 'A' && current <= 'Z') ||
+				(current >= '0' && current <= '9') ||
+				(current == '_')
+			) ) {
+				*valid_ferite_identifier = FE_FALSE;
+			}
 			ferite_buffer_add_char(script, result, current);
 		}
 		ADVANCE_CHAR(script, parser);
@@ -278,53 +294,113 @@ FeriteVariable *Ferite_JSON_Parse_Number( FeriteScript *script, FeriteJSONParser
 	return fnumber;
 }
 FeriteVariable *Ferite_JSON_Parse_String( FeriteScript *script, FeriteJSONParser *parser ) {
-	FeriteString *rstr = Ferite_JSON_Parse_StringToFeriteString( script, parser );
+	FeriteString *rstr = Ferite_JSON_Parse_StringToFeriteString( script, parser, NULL );
 	FeriteVariable *vstr = ferite_create_string_variable( script, "string", rstr, FE_STATIC );
 	ferite_str_destroy( script, rstr );
 	return vstr;
 }
-FeriteVariable *Ferite_JSON_Parse_Array( FeriteScript *script, FeriteJSONParser *parser ) {
+FeriteVariable *Ferite_JSON_Parse_Array( FeriteScript *script, FeriteJSONParser *parser, FeriteObject *root ) {
 	int position = 0;
 	FeriteVariable *array = ferite_create_uarray_variable(script, "array", 0, FE_STATIC);
-
+	int check_for_attribute_function = (root != NULL ? FE_TRUE : FE_FALSE);
+	FeriteClass *root_class = NULL;
+	long count = 0;
+	
+	if( root->klass == JSONArrayHandler ) {
+		FeriteVariable *_root_class = ferite_object_get_var(script, root, "root_class");
+		if( _root_class ) {
+			root_class = VAC(_root_class);
+		}
+	}
+	
 	ADVANCE_CHAR( script, parser );
 	EAT_WHITESPACE( script, parser );
 	while( CURRENT_CHAR( script, parser ) != ']' ) {
 		FeriteVariable *value = NULL;
 
-		EAT_WHITESPACE( script, parser );
-		value = Ferite_JSON_Parse_Value( script, parser );
-		CHECK_ERROR(script);
+		FeriteObject *new_root = NULL;
 		
+		if( root ) {
+			if( root_class == NULL ) {
+				FeriteVariable **parameter_list = (check_for_attribute_function ? ferite_create_parameter_list_from_data( script, "l", count, NULL ) : NULL);
+				FeriteFunction  *objectForArrayElementFunction = (check_for_attribute_function ? ferite_object_get_function_for_params( script, root, "objectForArrayElement", parameter_list ) : NULL);
+		
+				if( objectForArrayElementFunction ) {
+					FeriteVariable *return_value = ferite_call_function( script, root, NULL, objectForArrayElementFunction, parameter_list );
+					if( return_value ) {
+						if( return_value->type == F_VAR_OBJ ) {
+							new_root = VAO(return_value);
+							if( new_root ) {
+								FINCREF(new_root);
+							}
+						}
+						ferite_variable_destroy( script, return_value );
+					}
+				} else {
+					check_for_attribute_function = FE_FALSE;
+				}
+
+				if( parameter_list ) {
+					ferite_delete_parameter_list( script, parameter_list );
+				}
+			} else {
+				FeriteVariable *_new_root = ferite_new_object(script, root_class, NULL);
+				if( _new_root ) {
+					if( VAO(_new_root) ) {
+						new_root = VAO(_new_root);
+						FINCREF(new_root);
+					}
+					ferite_variable_destroy( script, _new_root );
+				}
+			}
+		}
+		
+		EAT_WHITESPACE( script, parser );
+		value = Ferite_JSON_Parse_Value( script, parser, new_root );
+		CHECK_ERROR(script);
+
 		ferite_uarray_add( script, VAUA(array), value, NULL, FE_ARRAY_ADD_AT_END );
+
+		if( new_root ) {
+			FDECREF(new_root);
+		}
 
 		EAT_WHITESPACE( script, parser );
 		if( CURRENT_CHAR(script,parser) == ',') {
 			ADVANCE_CHAR( current, parser );
 		}
 		EAT_WHITESPACE( script, parser );
+		count++;
 	}
 	ADVANCE_CHAR(script, parser);
 	return array;
 }
-FeriteVariable *Ferite_JSON_Parse_Object( FeriteScript *script, FeriteJSONParser *parser ) {
-	FeriteVariable *object = ferite_new_object(script, ferite_find_namespace_element_contents( script, script->mainns, "JSON.JSONObject", FENS_CLS), NULL);
-	FeriteVariable *ovalues = ferite_object_get_var( script, VAO(object), "_variables" );
+FeriteVariable *Ferite_JSON_Parse_Object( FeriteScript *script, FeriteJSONParser *parser, FeriteObject *root ) {
+	FeriteVariable *object = (root ? 
+		ferite_create_object_variable_with_data( script, "JSON Object", root, FE_STATIC ) :
+		ferite_new_object(script, ferite_find_namespace_element_contents( script, script->mainns, "JSON.Object", FENS_CLS), NULL) 
+	);
+	FeriteVariable *ovalues = ferite_object_get_var( script, VAO(object), "_JSONVariables" );
 	FeriteString *name = NULL;
 	int seen_reference = FE_FALSE;
+	int check_for_attribute_function = FE_TRUE;
+
+	if( root ) {
+		MARK_VARIABLE_AS_DISPOSABLE(object);
+	}
 	
 	parser->depth++;
 	ADVANCE_CHAR( script, parser );
 	EAT_WHITESPACE( script, parser );
 	while( CURRENT_CHAR( script, parser ) != '}' ) {
-		FeriteString *key = Ferite_JSON_Parse_StringToFeriteString( script, parser );
+		int valid_ferite_identifier = FE_TRUE;
+		FeriteString *key = Ferite_JSON_Parse_StringToFeriteString( script, parser, &valid_ferite_identifier );
 		FeriteVariable *value = NULL;
 
 		CHECK_ERROR(script);
 
 		EAT_WHITESPACE( script, parser );
 		if( CURRENT_CHAR( script, parser ) !=  ':' ) {
-			printf("error\n");
 			ferite_error( script, 0, "Expecting :" );
 			return NULL;
 		}
@@ -333,7 +409,7 @@ FeriteVariable *Ferite_JSON_Parse_Object( FeriteScript *script, FeriteJSONParser
 		EAT_WHITESPACE( script, parser );
 		
 		if( !seen_reference && strcmp(key->data, ":reference") == 0 ) {
-			FeriteString *object_id = Ferite_JSON_Parse_StringToFeriteString( script, parser );
+			FeriteString *object_id = Ferite_JSON_Parse_StringToFeriteString( script, parser, NULL );
 			FeriteObject *target = ferite_hash_get( script, parser->named_objects, object_id->data );
 			
 			if( target ) {
@@ -341,16 +417,55 @@ FeriteVariable *Ferite_JSON_Parse_Object( FeriteScript *script, FeriteJSONParser
 				VAO(object) = target;
 				FINCREFI(VAO(object), object->refcount);
 			} else {
-				FeriteVariable *oname = ferite_object_get_var( script, VAO(object), "_name" );
-				ferite_str_cpy( script, VAS(oname), object_id );
+				FeriteVariable *oname = ferite_object_get_var( script, VAO(object), "_JSONName" );
+				if( oname ) {
+					ferite_str_cpy( script, VAS(oname), object_id );
+				}
 				ferite_hash_add( script, parser->named_objects, object_id->data, VAO(object) );
 			}
 			ferite_str_destroy( script, object_id );
 		} else {
-			value = Ferite_JSON_Parse_Value( script, parser );
-			CHECK_ERROR(script);
+			FeriteObject    *new_root = NULL;
+			FeriteVariable **parameter_list = (check_for_attribute_function ? ferite_create_parameter_list_from_data( script, "c", key->data, NULL ) : NULL);
+			FeriteFunction  *objectForAttributeFunction = (check_for_attribute_function ? ferite_object_get_function_for_params( script, VAO(object), "objectForAttribute", parameter_list ) : NULL);
+			FeriteVariable  *existing_attribute = ferite_object_get_var( script, VAO(object), key->data );
+			
+			if( objectForAttributeFunction ) {
+				FeriteVariable *return_value = ferite_call_function( script, VAO(object), NULL, objectForAttributeFunction, parameter_list );
+				if( return_value ) {
+					if( return_value->type == F_VAR_OBJ ) {
+						new_root = VAO(return_value);
+						if( new_root ) {
+							FINCREF(new_root);
+						}
+					}
+					ferite_variable_destroy( script, return_value );
+				}
+			} else {
+				check_for_attribute_function = FE_FALSE;
+			}
 
-			ferite_uarray_add( script, VAUA(ovalues), value, key->data, FE_ARRAY_ADD_AT_END );
+			if( parameter_list ) {
+				ferite_delete_parameter_list( script, parameter_list );
+			}
+			
+			value = Ferite_JSON_Parse_Value( script, parser, new_root );
+			CHECK_ERROR(script);
+			
+			if( existing_attribute && root != NULL ) {
+				ferite_variable_fast_assign( script, existing_attribute, value );
+				ferite_variable_destroy( script, value );
+			} else if( valid_ferite_identifier && root != NULL ) {
+				ferite_object_set_var( script, VAO(object), key->data, value );
+			} else if( ovalues ) {			
+				ferite_uarray_add( script, VAUA(ovalues), value, key->data, FE_ARRAY_ADD_AT_END );
+			} else {
+				ferite_variable_destroy( script, value );
+			}
+			
+			if( new_root ) {
+				FDECREF(new_root);
+			}
 		}
 		seen_reference = FE_TRUE;
 
@@ -366,7 +481,7 @@ FeriteVariable *Ferite_JSON_Parse_Object( FeriteScript *script, FeriteJSONParser
 	parser->depth--;
 	return object;
 }
-FeriteVariable *Ferite_JSON_Parse_Value( FeriteScript *script, FeriteJSONParser *parser ) {
+FeriteVariable *Ferite_JSON_Parse_Value( FeriteScript *script, FeriteJSONParser *parser, FeriteObject *root ) {
 	FeriteVariable *value = NULL;
 	EAT_WHITESPACE( script, parser );
 	switch( CURRENT_CHAR( script, parser ) ) {
@@ -374,10 +489,10 @@ FeriteVariable *Ferite_JSON_Parse_Value( FeriteScript *script, FeriteJSONParser 
 			value = Ferite_JSON_Parse_String( script, parser );
 			break;
 		case '{':
-			value = Ferite_JSON_Parse_Object( script, parser );
+			value = Ferite_JSON_Parse_Object( script, parser, root );
 			break;
 		case '[':
-			value = Ferite_JSON_Parse_Array( script, parser );
+			value = Ferite_JSON_Parse_Array( script, parser, root );
 			break;
 		case 't':
 			CHECK_TOKEN( script, parser, "true" );

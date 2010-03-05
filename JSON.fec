@@ -5,6 +5,7 @@ uses "JSON.lib";
 
 module-header {
 	#include "utility.h"
+	extern FeriteClass *JSONArrayHandler;
 }
 
 class modifies Obj {
@@ -21,17 +22,30 @@ class modifies Obj {
 namespace JSON {
 	object json_output;
 	
-	class JSONObject {
-		string _name;
-		array  _variables;
+	class Object {
+		string _JSONName;
+		array  _JSONVariables;
 		
 		function toString {
-			return "{'${._name}': ${._variables.keys()}}";
+			return "{'${._JSONName}': ${._JSONVariables.keys()}}";
 		}
 		function attribute_missing( string name ) {
-			return ._variables[name];
+			return ._JSONVariables[name];
 		}
 	}
+
+	class ArrayHandler {
+		void root_class;
+		constructor( void klass ) {
+			.root_class = klass;
+		}
+		function objectForArrayElement( number i ) {
+			void root_class = .root_class;
+			Console.println("Returning object for $i");
+			return new root_class();
+		}
+	}
+	
 	/**
 	 * @function escape
 	 * @declaration native function escape( string value )
@@ -53,9 +67,16 @@ namespace JSON {
 	 * @param string value The JSON code to parse
 	 * @return The ferite representation of the value.
 	 */
-	native function parse( string value ) {
+	function parse( string value ) {
+		return .parse( value, null );
+	}
+	native function parse( string value, object root ) {
 		FeriteJSONParser *parser = fmalloc( sizeof(FeriteJSONParser) );
 		FeriteVariable *result = NULL;
+		
+		if( JSONArrayHandler == NULL ) {
+			JSONArrayHandler = ferite_find_namespace_element_contents( script, script->mainns, "JSON.ArrayHandler", FENS_CLS);
+		}
 		
 		parser->named_objects = ferite_create_hash( script, 32 );
 		parser->data = fstrdup(value->data);
@@ -63,7 +84,7 @@ namespace JSON {
 		parser->pos = 0;
 		parser->depth = 0;
 		
-		result = Ferite_JSON_Parse_Value( script, parser );
+		result = Ferite_JSON_Parse_Value( script, parser, root );
 		if( result == NULL )
 			ferite_error( script, 0, "Parse error in stream at character %d: %s", parser->pos, parser->data );
 		
