@@ -161,7 +161,8 @@ FeriteString *Ferite_JSON_Parse_StringToFeriteString( FeriteScript *script, Feri
 		if( current == '\\' ) {
 			int success = FE_TRUE;
 			
-			*valid_ferite_identifier = FE_FALSE;
+			if( valid_ferite_identifier )
+				*valid_ferite_identifier = FE_FALSE;
 			
 			ADVANCE_CHAR(script, parser);
 			next = CURRENT_CHAR(script, parser);
@@ -306,7 +307,7 @@ FeriteVariable *Ferite_JSON_Parse_Array( FeriteScript *script, FeriteJSONParser 
 	FeriteClass *root_class = NULL;
 	long count = 0;
 	
-	if( root->klass == JSONArrayHandler ) {
+	if( root && root->klass == JSONArrayHandler ) {
 		FeriteVariable *_root_class = ferite_object_get_var(script, root, "root_class");
 		if( _root_class ) {
 			root_class = VAC(_root_class);
@@ -453,7 +454,9 @@ FeriteVariable *Ferite_JSON_Parse_Object( FeriteScript *script, FeriteJSONParser
 			CHECK_ERROR(script);
 			
 			if( existing_attribute && root != NULL ) {
-				ferite_variable_fast_assign( script, existing_attribute, value );
+				if( !ferite_variable_fast_assign( script, existing_attribute, value ) ) {
+					ferite_error( script, 0, "Incompatible types between variable and JSON value for variable %s\n", key->data );
+				}
 				ferite_variable_destroy( script, value );
 			} else if( valid_ferite_identifier && root != NULL ) {
 				ferite_object_set_var( script, VAO(object), key->data, value );
@@ -466,6 +469,8 @@ FeriteVariable *Ferite_JSON_Parse_Object( FeriteScript *script, FeriteJSONParser
 			if( new_root ) {
 				FDECREF(new_root);
 			}
+
+			CHECK_ERROR(script);
 		}
 		seen_reference = FE_TRUE;
 
