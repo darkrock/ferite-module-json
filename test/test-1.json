@@ -1,0 +1,19 @@
+{
+	"id": 10,
+	"name": "Cention",
+	"age": 28,
+	":invalid-attribute": "This is invalid - top",
+	"subObject": {
+		"type": "cat",
+		":invalid-attribute": "This is invalid - bottom",
+		"ValidAttribute": "This is valid"
+	},
+	"subObjects": [
+		{ "id": 1, "name": "Cention" },
+		{ "id": 2, "name": "Cention" },
+		{ "id": 3, "name": "Cention" },
+		{ "id": 4, "name": "Cention" },
+		{ "id": 5, "name": "Cention" },
+		{ "id": 6, "name": "Cention" }	
+	]
+}

@@ -1,0 +1,45 @@
+uses "console";
+uses "filesystem";
+uses "JSON";
+uses "reflection";
+
+class SubTest {
+	string type;
+	
+	function toString {
+		object wrapper = new Object(self);
+		return "Variable: ${wrapper.getVariables()}";
+	}
+}
+
+class Test extends JSON.Object {
+	number id;
+	string name;
+	object subObject;
+	array  subObjects;
+	
+	function objectForArrayElement( number index ) {
+		return new Test();
+	}
+	
+	function objectForAttribute( string name ) {
+		switch( name ) {
+			case 'subObject': return new SubTest();
+			case 'subObjects': return new JSON.ArrayHandler(Test);
+		}
+		return null;
+	}
+	
+	function toString {
+		object wrapper = new Object(self);
+		return "Variable: ${wrapper.getVariables()}";
+	}
+}
+
+string content_1 = File.open('test-1.json').toString();
+string content_2 = File.open('test-2.json').toString();
+object target = JSON.parse( content_1, new Test() );
+array targets = JSON.parse( content_2, new Test() );
+
+Console.println(target);
+Console.println(targets);
