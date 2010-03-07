@@ -428,11 +428,11 @@ FeriteVariable *Ferite_JSON_Parse_Object( FeriteScript *script, FeriteJSONParser
 		} else {
 			FeriteObject    *new_root = NULL;
 			FeriteVariable **parameter_list = (check_for_attribute_function ? ferite_create_parameter_list_from_data( script, "c", key->data, NULL ) : NULL);
-			FeriteFunction  *objectForAttributeFunction = (check_for_attribute_function ? ferite_object_get_function_for_params( script, VAO(object), "objectForAttribute", parameter_list ) : NULL);
+			FeriteFunction  *objectForAttributeFunction = (check_for_attribute_function ? ferite_object_get_function_for_params( script, root, "objectForAttribute", parameter_list ) : NULL);
 			FeriteVariable  *existing_attribute = ferite_object_get_var( script, VAO(object), key->data );
 			
 			if( objectForAttributeFunction ) {
-				FeriteVariable *return_value = ferite_call_function( script, VAO(object), NULL, objectForAttributeFunction, parameter_list );
+				FeriteVariable *return_value = ferite_call_function( script, root, NULL, objectForAttributeFunction, parameter_list );
 				if( return_value ) {
 					if( return_value->type == F_VAR_OBJ ) {
 						new_root = VAO(return_value);

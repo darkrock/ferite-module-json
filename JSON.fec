@@ -8,6 +8,10 @@ module-header {
 	extern FeriteClass *JSONArrayHandler;
 }
 
+module-init {
+	JSONArrayHandler = NULL;
+}
+
 class modifies Obj {
 	function toJSON() 
 		return '{ }';
@@ -69,7 +73,7 @@ namespace JSON {
 		FeriteJSONParser *parser = fmalloc( sizeof(FeriteJSONParser) );
 		FeriteVariable *result = NULL;
 		
-		if( JSONArrayHandler == NULL ) {
+		if( ! JSONArrayHandler ) {
 			JSONArrayHandler = ferite_find_namespace_element_contents( script, script->mainns, "JSON.ArrayHandler", FENS_CLS);
 		}
 		
