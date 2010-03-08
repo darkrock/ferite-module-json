@@ -269,7 +269,7 @@ namespace JSON {
 			array code = [];
 			array params = [];
 			parameters.map() using ( key, value ) {
-				params[] = "\"$key\" : ${JSON.valueToJSON(value)}"; 
+				params[] = "\"$key\":${JSON.valueToJSON(value)}"; 
 			};
 			code[] = '"version" : "1.2"';
 			code[] = '"method" : "' + f + '"';
