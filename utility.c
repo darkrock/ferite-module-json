@@ -259,7 +259,7 @@ FeriteVariable *Ferite_JSON_Parse_Number( FeriteScript *script, FeriteJSONParser
 	double floatp = 0;
 	int isInteger = 1;
 	FeriteString *buf = NULL;
-
+	
 	/* Sign */
 	CHECK_AND_PUSH( script, parser, number, '-' );
 	/* Head */
@@ -277,6 +277,7 @@ FeriteVariable *Ferite_JSON_Parse_Number( FeriteScript *script, FeriteJSONParser
 	}
 	/* Exponent */
 	if( CURRENT_CHAR(script,parser) == 'e' || CURRENT_CHAR(script,parser) == 'E' ) {
+		ADVANCE_CHAR(script, parser);
 		ferite_buffer_add_char(script, number, 'E');
 		CHECK_AND_PUSH( script, parser, number, '-' );
 		CHECK_AND_PUSH( script, parser, number, '+' );
@@ -404,7 +405,7 @@ FeriteVariable *Ferite_JSON_Parse_Object( FeriteScript *script, FeriteJSONParser
 
 		EAT_WHITESPACE( script, parser );
 		if( CURRENT_CHAR( script, parser ) !=  ':' ) {
-			ferite_error( script, 0, "Expecting :" );
+			ferite_error( script, 0, "Expecting : at offset %d", parser->pos );
 			return NULL;
 		}
 		ADVANCE_CHAR( script, parser );
