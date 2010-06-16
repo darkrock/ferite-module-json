@@ -278,6 +278,8 @@ FeriteVariable *Ferite_JSON_Parse_Number( FeriteScript *script, FeriteJSONParser
 	/* Exponent */
 	if( CURRENT_CHAR(script,parser) == 'e' || CURRENT_CHAR(script,parser) == 'E' ) {
 		ferite_buffer_add_char(script, number, 'E');
+		CHECK_AND_PUSH( script, parser, number, '-' );
+		CHECK_AND_PUSH( script, parser, number, '+' );
 		SPIN_RANGE( script, parser, number, '0', '9' );
 	}
 
