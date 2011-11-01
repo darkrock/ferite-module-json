@@ -1,7 +1,7 @@
 <?xml version="1.0" ?>
 <yard name="json">
 	<property id="name" value="ferite-json" />
-	<property id="version" value="3.1" />
+	<property id="version" value="3.2" />
 
     <module id="JSON">
         <!-- C flags -->
