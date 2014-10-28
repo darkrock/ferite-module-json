@@ -236,7 +236,7 @@ namespace JSON {
 				.connection.flush();
 				return .readResponse(.connection);
 			} else {
-				raise new Error("Unable to connection JSON host $host:$port$url");
+				raise new Error("Could not connect to host $host:$port$url");
 			}
 		}
 
